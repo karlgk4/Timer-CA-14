@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Timer</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#1b1b1b;--btn:#6b6b6b;--btn-h:#8a8a8a;--btn-t:#fff}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font-family:"Courier New",monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:20px}
+#box{width:100%;max-width:1100px;cursor:pointer;background:#0b0b0b;border:4px solid;border-color:#000 #5f5f5f #5f5f5f #000;padding:3vw 3vw 2vw;display:flex;flex-direction:column;align-items:center;gap:2vw}
+#disp{width:100%;line-height:0}
+#disp.sh{animation:shc 9s ease-in-out infinite}
+#disp.sh.done{animation:b .5s steps(2) 6}
+#disp.sh rect[fill="#fff"]{fill:currentColor}
+#disp.ok rect[fill="#fff"]{fill:#80ff20}
+#box.sh{animation:glow 9s ease-in-out infinite}
+@keyframes shc{0%,100%{color:#8ecbff}25%{color:#b9a2ff}50%{color:#7ff0ff}75%{color:#8aa8ff}}
+@keyframes glow{0%,100%{box-shadow:0 0 36px rgba(80,150,255,.35)}25%{box-shadow:0 0 36px rgba(160,120,255,.35)}50%{box-shadow:0 0 36px rgba(60,230,255,.35)}75%{box-shadow:0 0 36px rgba(100,130,255,.35)}}
+#sh{line-height:0}#sh:empty{display:none}#sh svg{height:18px;width:auto;display:block}
+.lbl{text-align:center;font-size:14px;color:#ddd}
+#disp svg g.out{animation:so .4s cubic-bezier(.5,0,.8,.5) both}
+#disp svg g.in{animation:si .4s cubic-bezier(.2,.7,.3,1) both}
+@keyframes so{from{transform:translateY(0)}to{transform:translateY(9px)}}
+@keyframes si{from{transform:translateY(-9px)}to{transform:translateY(0)}}
+button.sel{background:#3f6fd0;border-color:#8fb0ff #1a2f66 #1a2f66 #8fb0ff}
+#disp svg{width:100%;height:auto;max-height:50vh;display:block}
+#disp.done{animation:b .5s steps(2) 6}
+@keyframes b{50%{opacity:.15}}
+.row{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:900px}
+button,input{font-family:inherit;font-size:14px}
+button{background:var(--btn);color:var(--btn-t);border:3px solid;border-color:#bdbdbd #2b2b2b #2b2b2b #bdbdbd;padding:6px 10px;cursor:pointer;text-shadow:2px 2px #333}
+button:hover{background:var(--btn-h)}
+button:active{border-color:#2b2b2b #bdbdbd #bdbdbd #2b2b2b}
+input{width:90px;background:#000;color:#fff;border:3px solid;border-color:#2b2b2b #bdbdbd #bdbdbd #2b2b2b;padding:6px;text-align:center}
+#edit{display:none;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center}
+#edit span{font-size:18px}
+.big{min-width:100px}
+.panel{background:#3b3b3b;border:4px solid;border-color:#5f5f5f #1e1e1e #1e1e1e #5f5f5f;padding:16px;display:flex;flex-direction:column;gap:12px;max-width:560px;width:100%}
+#hint{display:flex;flex-direction:column;align-items:center;gap:6px;opacity:.85}
+#hint svg{height:14px;width:auto;display:block}
+</style>
+</head>
+<body>
+<div id="box" title="Zum Bearbeiten klicken"><div id="disp"></div><div id="sh"></div><div id="hint"></div></div>
+<div id="edit">
+  <input id="eh" type="number" min="0" placeholder="Std"><span>:</span>
+  <input id="em" type="number" min="0" placeholder="Min"><span>:</span>
+  <input id="es" type="number" min="0" placeholder="Sek">
+  <button id="ok">OK</button>
+</div>
+<div class="panel">
+<div class="row">
+  <button id="go" class="big">Start</button>
+  <button id="reset">Reset</button>
+</div>
+<div class="row" id="adds"></div>
+<div class="row">
+  <input id="cu" type="text" inputmode="text" autocomplete="off" placeholder="z.B. -5">
+  <button id="cb">± Eigene Min</button>
+</div>
+</div>
+<div class="panel">
+<div class="lbl">Stream Hour</div>
+<div class="row" id="mults"></div>
+<div class="row"><input id="mc" type="text" autocomplete="off" placeholder="x eigene"><button id="mb">OK</button></div>
+<div class="row"><input id="sd" type="text" autocomplete="off" value="60"><span>Min</span><button id="shgo">Stream Hour starten</button><button id="shstop">Stop</button></div>
+</div>
+<script>
+const G={
+'0':['.###.','#...#','#...#','#...#','#...#','#...#','.###.'],
+'1':['..#..','.##..','..#..','..#..','..#..','..#..','.###.'],
+'2':['.###.','#...#','....#','...#.','..#..','.#...','#####'],
+'3':['.###.','#...#','....#','..##.','....#','#...#','.###.'],
+'4':['...#.','..##.','.#.#.','#..#.','#####','...#.','...#.'],
+'5':['#####','#....','####.','....#','....#','#...#','.###.'],
+'6':['.###.','#....','####.','#...#','#...#','#...#','.###.'],
+'7':['#####','....#','...#.','..#..','.#...','.#...','.#...'],
+'8':['.###.','#...#','#...#','.###.','#...#','#...#','.###.'],
+'9':['.###.','#...#','#...#','.####','....#','...#.','.##..'],
+':':['.','.','#','.','#','.','.'],
+' ':['...','...','...','...','...','...','...'],
+'S':['.###.','#...#','#....','.###.','....#','#...#','.###.'],
+'M':['#...#','##.##','#.#.#','#...#','#...#','#...#','#...#'],
+'u':['.....','.....','#...#','#...#','#...#','#..##','.##.#'],
+'b':['#....','#....','####.','#...#','#...#','#...#','####.'],
+'i':['#','.','#','#','#','#','#'],
+'n':['.....','.....','####.','#...#','#...#','#...#','#...#'],
+'=':['.....','.....','#####','.....','#####','.....','.....'],
+'€':['..###','.#...','####.','.#...','####.','.#...','..###'],
+'x':['.....','.....','#...#','.#.#.','..#..','.#.#.','#...#'],
+'.':['.','.','.','.','.','.','#']
+};
+let animNext=false,animUntil=0;
+function an(){animNext=true;setTimeout(()=>{animNext=false},0);}
+function glyph(c){const g=G[c];let s='',w='';
+  g.forEach((row,r)=>{[...row].forEach((p,i)=>{if(p==='#'){
+    s+=`<rect x="${i+1}" y="${r+1}" width="1.02" height="1.02" fill="#3f3f3f"/>`;
+    w+=`<rect x="${i}" y="${r}" width="1.02" height="1.02" fill="#fff"/>`;}})});
+  return s+w;}
+function drawDisp(str,prev,anim){
+  let x=0,out='',k=0;
+  const same=anim&&prev&&prev.length===str.length;
+  [...str].forEach((c,i)=>{
+    const w=G[c][0].length;let inner;
+    if(same&&c!==':'&&prev[i]!==c){const d=(k++*0.06).toFixed(2);
+      inner=`<g class="out" style="animation-delay:${d}s">${glyph(prev[i])}</g><g class="in" style="animation-delay:${d}s">${glyph(c)}</g>`;}
+    else inner='<g>'+glyph(c)+'</g>';
+    out+=`<svg x="${x}" y="0" width="${w+1}" height="9" viewBox="0 0 ${w+1} 9">${inner}</svg>`;
+    x+=w+1;
+  });
+  return `<svg viewBox="0 0 ${x} 9" shape-rendering="crispEdges" preserveAspectRatio="xMidYMid meet">${out}</svg>`;
+}
+function draw(t){
+  let x=0,s='',w='';
+  for(const c of t){
+    const g=G[c];
+    g.forEach((row,r)=>{[...row].forEach((p,i)=>{if(p==='#'){
+      s+=`<rect x="${x+i+1}" y="${r+1}" width="1.02" height="1.02" fill="#3f3f3f"/>`;
+      w+=`<rect x="${x+i}" y="${r}" width="1.02" height="1.02" fill="#fff"/>`;}})});
+    x+=g[0].length+1;
+  }
+  return `<svg viewBox="0 0 ${x} 8" shape-rendering="crispEdges" preserveAspectRatio="xMidYMid meet">${s}${w}</svg>`;
+}
+let rem=0,running=false,end=0,last='';
+const $=id=>document.getElementById(id);
+const p2=n=>String(n).padStart(2,'0');
+function show(){
+  const t=Math.ceil(rem/1000),h=Math.floor(t/3600),m=Math.floor(t%3600/60),s=t%60;
+  const str=p2(h)+':'+p2(m)+':'+p2(s);
+  if(str!==last&&(animNext||Date.now()>animUntil)){const prev=last;last=str;$('disp').innerHTML=drawDisp(str,prev,animNext);if(animNext)animUntil=Date.now()+800;}
+  $('go').textContent=running?'Pause':'Start';
+}
+function beep(){try{const a=new (window.AudioContext||window.webkitAudioContext)();
+  [0,.25,.5].forEach(d=>{const o=a.createOscillator(),g=a.createGain();o.type='square';o.frequency.value=880;g.gain.value=.08;o.connect(g);g.connect(a.destination);o.start(a.currentTime+d);o.stop(a.currentTime+d+.15);});}catch(e){}}
+function tick(){
+  if(shS==='run'){shRem=shEnd-Date.now();if(shRem<=0){shS='off';shRem=0;shBtn();}}
+  shShow();
+  if(running){
+    rem=end-Date.now();
+    if(rem<=0){rem=0;running=false;$('disp').classList.remove('done');void $('disp').offsetWidth;$('disp').classList.add('done');beep();}
+  }
+  show();
+}
+setInterval(tick,100);
+function pause(){if(running){rem=end-Date.now();running=false;}}
+$('go').onclick=()=>{
+  if(running){pause();}
+  else if(rem>0){end=Date.now()+rem;running=true;$('disp').classList.remove('done');}
+  show();
+};
+$('reset').onclick=()=>{an();running=false;rem=0;$('disp').classList.remove('done');$('edit').style.display='none';show();};
+let ac,ft,shS='off',shRem=0,shEnd=0,mult=2,shLast='',hm=null;
+function mAct(){return shS==='run'?mult:1;}
+function hint(){const m=mAct();if(m===hm)return;hm=m;const f=n=>+(n*m).toFixed(2);
+  $('hint').innerHTML='<div>'+draw('1 Sub = '+f(1)+' Min')+'</div><div>'+draw('1€ = '+f(2)+' Min')+'</div>';}
+function shShow(){
+  const on=shS==='run';
+  $('disp').classList.toggle('sh',on);$('box').classList.toggle('sh',on);
+  let txt='';
+  if(shS!=='off'){const t=Math.ceil(shRem/1000),h=Math.floor(t/3600),m=Math.floor(t%3600/60),s=t%60;txt='x'+mult+' '+(h>0?h+':':'')+p2(m)+':'+p2(s);}
+  if(txt!==shLast){shLast=txt;$('sh').innerHTML=txt?draw(txt):'';}
+  $('sh').style.opacity=shS==='pause'?.45:1;
+  hint();
+}
+function shBtn(){$('shgo').textContent=shS==='run'?'Pause':shS==='pause'?'Fortsetzen':'Stream Hour starten';}
+function setMult(m){if(!(m>=1))return;mult=m;
+  document.querySelectorAll('#mults button').forEach(b=>b.classList.toggle('sel',+b.dataset.m===m));shShow();}
+[2,3,4].forEach(n=>{const b=document.createElement('button');b.textContent='x'+n;b.dataset.m=n;b.onclick=()=>setMult(n);$('mults').appendChild(b);});
+setMult(2);
+$('mb').onclick=()=>{setMult(parseFloat($('mc').value.replace(',','.')));$('mc').value='';};
+$('mc').onkeydown=e=>{if(e.key==='Enter')$('mb').click();};
+$('shgo').onclick=()=>{
+  if(shS==='run'){shRem=shEnd-Date.now();shS='pause';}
+  else if(shS==='pause'){shEnd=Date.now()+shRem;shS='run';}
+  else{const d=parseFloat($('sd').value.replace(',','.'));if(!(d>0))return;shRem=d*60000;shEnd=Date.now()+shRem;shS='run';}
+  shBtn();shShow();
+};
+$('shstop').onclick=()=>{shS='off';shRem=0;shBtn();shShow();};
+
+/* Speichern & Sync (laeuft ueber Zeitstempel, daher auch bei geschlossener Seite weiter) */
+let dbDoc=null,st;const myId=Math.random().toString(36).slice(2);
+function save(){
+  if(!dbDoc)return;
+  clearTimeout(st);
+  st=setTimeout(()=>{dbDoc.set({rem,running,end,shS,shRem,shEnd,mult,sd:$('sd').value,by:myId,t:Date.now()}).catch(()=>{});},150);
+}
+function load(d){an();
+  rem=+d.rem||0;running=!!d.running;end=+d.end||0;
+  shS=d.shS||'off';shRem=+d.shRem||0;shEnd=+d.shEnd||0;
+  if(d.mult>=1)mult=+d.mult;
+  if(typeof d.sd==='string')$('sd').value=d.sd;
+  const n=Date.now();
+  if(running){rem=end-n;if(rem<=0){rem=0;running=false;}}
+  if(shS==='run'){shRem=shEnd-n;if(shRem<=0){shS='off';shRem=0;}}
+  $('disp').classList.remove('done');
+  document.querySelectorAll('#mults button').forEach(b=>b.classList.toggle('sel',+b.dataset.m===mult));
+  shBtn();shShow();show();
+}
+document.addEventListener('click',save);
+$('sd').addEventListener('input',save);
+(async()=>{try{
+  const db=await claude.use('db');if(!db)return;
+  const ref=db.doc('timer/main');
+  ref.onSnapshot(s=>{
+    dbDoc=ref;
+    if(!s.exists)return;
+    const d=s.data();
+    if(!d||d.by===myId)return;
+    load(d);
+  },()=>{});
+}catch(e){}})();
+function xp(){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume();
+  const f=800+Math.random()*500,t=ac.currentTime,o=ac.createOscillator(),g=ac.createGain();
+  o.type='sine';o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*1.8,t+.09);
+  g.gain.setValueAtTime(.18,t);g.gain.exponentialRampToValueAtTime(.001,t+.18);
+  o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+.2);}catch(e){}}
+function flash(){an();const d=$('disp');d.classList.add('ok');clearTimeout(ft);ft=setTimeout(()=>d.classList.remove('ok'),3000);xp();}
+function add(min){
+  if(!min)return;if(min>0)min*=mAct();flash();
+  if(running){end+=min*60000;rem=end-Date.now();if(rem<0){rem=0;end=Date.now();}}else{rem=Math.max(0,rem+min*60000);}
+  $('disp').classList.remove('done');show();
+}
+[1,2,3,4,5,10,30].forEach(n=>{
+  const b=document.createElement('button');b.textContent='+'+n+' Min';b.onclick=()=>add(n);$('adds').appendChild(b);
+});
+$('cb').onclick=()=>{add(parseFloat($('cu').value.replace(',','.').replace('−','-')));$('cu').value='';};
+$('cu').onkeydown=e=>{if(e.key==='Enter')$('cb').click();};
+$('box').onclick=()=>{
+  pause();
+  const t=Math.ceil(rem/1000);
+  $('eh').value=Math.floor(t/3600);$('em').value=Math.floor(t%3600/60);$('es').value=t%60;
+  $('edit').style.display='flex';show();
+};
+$('ok').onclick=()=>{an();
+  const h=+$('eh').value||0,m=+$('em').value||0,s=+$('es').value||0;
+  rem=Math.max(0,(h*3600+m*60+s)*1000);
+  $('edit').style.display='none';show();
+};
+['eh','em','es'].forEach(i=>$(i).onkeydown=e=>{if(e.key==='Enter')$('ok').click();});
+hint();
+show();
+</script>
+</body>
+</html>
